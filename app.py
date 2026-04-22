@@ -1,31 +1,73 @@
-import socket
-import time
-import os
-
-def tcp_ping(host, port, timeout=5):
-    """
-    Attempts a TCP connection to simulate a ping. 
-    Returns (Success, Message)
-    """
-    try:
-        start = time.time()
-        # Create a connection to the specific DB port
-        with socket.create_connection((host, port), timeout=timeout):
-            duration = (time.time() - start) * 1000
-            return True, f"SUCCESS: Reachable in {duration:.2f}ms"
-    except socket.timeout:
-        return False, "ERROR: Connection timed out (check Security Groups/NACLs)"
-    except ConnectionRefusedError:
-        return False, "ERROR: Connection refused (DB is down or port is wrong)"
-    except Exception as e:
-        return False, f"ERROR: {str(e)}"
-
 # --- CONFIGURATION ---
 # Use your RDS Private Endpoint and Port
-RDS_HOST =os.environ.get("DB_HOST", "ht-workflow.c9hukjucdlzt.us-east-1.rds.amazonaws.com")
-RDS_PORT = 5432  # 5432 for Postgres, 3306 for MySQL/Aurora
+# RDS_HOST =os.environ.get("DB_HOST", "ht-workflow.c9hukjucdlzt.us-east-1.rds.amazonaws.com")
+# RDS_PORT = 5432  # 5432 for Postgres, 3306 for MySQL/Aurora
 
-if __name__ == "__main__":
-    print(f"Testing connectivity to {RDS_HOST} on port {RDS_PORT}...")
-    success, message = tcp_ping(RDS_HOST, RDS_PORT)
-    print(message)
+import dash
+from dash import html, dcc, Input, Output, State
+import socket
+import datetime
+
+# --- CONFIGURATION ---
+# Replace these with your actual RDS details
+DEFAULT_RDS_HOST = "ht-workflow.c9hukjucdlzt.us-east-1.rds.amazonaws.com"
+DEFAULT_RDS_PORT = 5432  # 5432 for Postgres, 3306 for MySQL
+
+app = dash.Dash(__name__)
+server = app.server  # Crucial for Posit Connect!
+
+app.layout = html.Div(style={'fontFamily': 'sans-serif', 'padding': '40px'}, children=[
+    html.H2("RDS Connectivity Diagnostic Tool"),
+    html.P("This tool tests the TCP connection from this Posit Connect host to your RDS instance."),
+    
+    html.Div(style={'marginBottom': '20px'}, children=[
+        html.Label("RDS Hostname:"),
+        dcc.Input(id='input-host', value=DEFAULT_RDS_HOST, type='text', style={'width': '100%', 'padding': '8px'}),
+    ]),
+    
+    html.Div(style={'marginBottom': '20px'}, children=[
+        html.Label("Port:"),
+        dcc.Input(id='input-port', value=DEFAULT_RDS_PORT, type='number', style={'width': '100px', 'padding': '8px'}),
+    ]),
+    
+    html.Button('Test Connection', id='btn-test', n_clicks=0, 
+                style={'backgroundColor': '#007bff', 'color': 'white', 'border': 'none', 'padding': '10px 20px', 'cursor': 'pointer'}),
+    
+    html.Hr(),
+    
+    dcc.Loading(id="loading-1", type="default", children=[
+        html.Div(id='result-output', style={'marginTop': '20px', 'fontSize': '18px', 'fontWeight': 'bold'})
+    ]),
+    
+    html.Div(id='debug-log', style={'marginTop': '20px', 'color': '#666', 'fontSize': '12px'})
+])
+
+@app.callback(
+    [Output('result-output', 'children'),
+     Output('result-output', 'style'),
+     Output('debug-log', 'children')],
+    Input('btn-test', 'n_clicks'),
+    [State('input-host', 'value'), State('input-port', 'value')]
+)
+def run_test(n_clicks, host, port):
+    if n_clicks == 0:
+        return "", {}, ""
+    
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        # We use a socket to attempt a TCP handshake
+        with socket.create_connection((host, int(port)), timeout=5):
+            msg = f"✅ SUCCESS: Reachable at {timestamp}"
+            style = {'color': 'green', 'marginTop': '20px', 'fontSize': '18px', 'fontWeight': 'bold'}
+            debug = f"Successful connection to {host} on port {port}."
+    except Exception as e:
+        msg = f"❌ FAILED: Connection Refused/Timeout at {timestamp} to {host}"
+        style = {'color': 'red', 'marginTop': '20px', 'fontSize': '18px', 'fontWeight': 'bold'}
+        debug = f"Error details: {str(e)}"
+
+    return msg, style, debug
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+ 

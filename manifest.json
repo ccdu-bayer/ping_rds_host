@@ -2,7 +2,7 @@
   "version": 1,
   "locale": "C.UTF-8",
   "metadata": {
-    "appmode": "python-api",
+    "appmode": "python-dash",
     "entrypoint": "app"
   },
   "python": {
@@ -18,7 +18,7 @@
       "checksum": "d41d8cd98f00b204e9800998ecf8427e"
     },
     "app.py": {
-      "checksum": "802cfa507682b13c865edcc10b1c1ce8"
+      "checksum": "ecdfd4b78ccdbdf12c514f2f20ae125f"
     }
   }
 }
