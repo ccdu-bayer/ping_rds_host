@@ -54,18 +54,21 @@ def run_test(n_clicks, host, port):
         return "", {}, ""
     
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # --- Step 1: Try DNS Resolution ---
     try:
-        # We use a socket to attempt a TCP handshake
-        with socket.create_connection((host, int(port)), timeout=5):
-            msg = f"✅ SUCCESS: Reachable at {timestamp}"
-            style = {'color': 'green', 'marginTop': '20px', 'fontSize': '18px', 'fontWeight': 'bold'}
-            debug = f"Successful connection to {host} on port {port}."
+        resolved_ip = socket.gethostbyname(host)
+        dns_status = f"DNS Status: Resolved {host} to {resolved_ip}"
     except Exception as e:
-        msg = f"❌ FAILED: Connection Refused/Timeout at {timestamp} to {host}"
-        style = {'color': 'red', 'marginTop': '20px', 'fontSize': '18px', 'fontWeight': 'bold'}
-        debug = f"Error details: {str(e)}"
+        dns_status = f"DNS Status: FAILED to resolve {host}. Error: {str(e)}"
+        return "❌ DNS FAILURE", {'color': 'red'}, dns_status
 
-    return msg, style, debug
+    # --- Step 2: Try TCP Connection ---
+    try:
+        with socket.create_connection((host, int(port)), timeout=5):
+            return "✅ SUCCESS", {'color': 'green'}, dns_status
+    except Exception as e:
+        # If DNS worked but this fails, it's a firewall/routing issue
+        return "❌ TIMED OUT", {'color': 'red'}, f"{dns_status} | Connection Error: {str(e)}"
 
 if __name__ == '__main__':
     app.run(debug=True)
